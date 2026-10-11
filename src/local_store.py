@@ -109,3 +109,4 @@ class LocalStore:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM local_expense ORDER BY local_id DESC")
             return [dict(row) for row in cursor.fetchall()]
+

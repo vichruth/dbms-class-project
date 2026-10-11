@@ -74,3 +74,4 @@ SELECT
     cl.resolved_at
 FROM conflict_log cl
 ORDER BY cl.resolved_at DESC;
+

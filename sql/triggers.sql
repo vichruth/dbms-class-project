@@ -92,3 +92,4 @@ CREATE TRIGGER trg_activity_conflict
 BEFORE UPDATE ON activity_entry
 FOR EACH ROW
 EXECUTE FUNCTION trg_fn_detect_activity_conflict();
+

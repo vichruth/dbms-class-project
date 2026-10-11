@@ -148,3 +148,4 @@ In addition to standard BCNF normalization, EdgeDB models hardware diversity via
   - `watch_device` contains `(device_id PK/FK, watch_model, firmware_version)`
 - **Integrity**: `device_id` in each subtype is simultaneously a Primary Key and a Foreign Key referencing `device(device_id) ON DELETE CASCADE`.
 - This avoids sparse NULL columns in the parent table while strictly preserving 3NF/BCNF.
+

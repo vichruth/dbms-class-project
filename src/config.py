@@ -19,3 +19,4 @@ WATCH_UUID = "watch-cmf-01"
 
 PHONE_SQLITE_PATH = os.path.join(DATA_DIR, "phone.sqlite")
 LAPTOP_SQLITE_PATH = os.path.join(DATA_DIR, "laptop.sqlite")
+

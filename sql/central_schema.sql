@@ -132,3 +132,4 @@ CREATE INDEX idx_expense_device_event ON expense(device_id, event_time DESC);
 CREATE INDEX idx_expense_category ON expense(category_id);
 CREATE INDEX idx_activity_date ON activity_entry(entry_date DESC);
 CREATE INDEX idx_sync_batch_device ON sync_batch(device_id, client_batch_seq);
+

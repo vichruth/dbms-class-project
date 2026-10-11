@@ -94,3 +94,4 @@ INSERT INTO activity_entry (device_id, entry_date, step_count, version)
 SELECT d.device_id, '2026-10-11'::date, 7890, 1
 FROM device d WHERE d.device_uuid = 'watch-cmf-01'
 ON CONFLICT (device_id, entry_date) DO NOTHING;
+

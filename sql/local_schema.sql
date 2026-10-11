@@ -25,3 +25,4 @@ CREATE TABLE IF NOT EXISTS device_meta (
 
 -- Fast lookup for pending unsynced rows during batch formation
 CREATE INDEX IF NOT EXISTS idx_local_unsynced ON local_expense(synced, local_id);
+

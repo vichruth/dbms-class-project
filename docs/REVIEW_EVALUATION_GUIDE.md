@@ -83,3 +83,4 @@ cd "/home/vichruth/ML_PROJECTS/dbms class project"
 ./run.sh
 ```
 Then open: **`http://127.0.0.1:5000`** in Chrome / Firefox.
+

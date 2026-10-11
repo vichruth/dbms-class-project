@@ -73,3 +73,4 @@ if __name__ == "__main__":
     for desc in test_cases:
         cat, conf = classify_expense(desc)
         print(f"'{desc}' -> {cat} (Confidence: {conf})")
+

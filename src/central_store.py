@@ -158,3 +158,4 @@ class CentralStore:
                     "device_count": device_count,
                     "conflict_count": conflict_count
                 }
+
