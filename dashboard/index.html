@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EdgeDB — Offline-First Sync & Conflict Management</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-hover: #334155;
+            --primary: #38bdf8;
+            --primary-hover: #0ea5e9;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: var(--font);
+            line-height: 1.5;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+            margin-bottom: 24px;
+        }
+
+        .badge-live {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            border: 1px solid var(--success);
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.3); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .kpi-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: transform 0.2s;
+        }
+        .kpi-card:hover { transform: translateY(-2px); }
+        .kpi-label { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
+        .kpi-val { font-size: 1.9rem; font-weight: 700; color: var(--text-main); margin-top: 6px; }
+        .kpi-sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+
+        /* Simulation Controls */
+        .demo-panel {
+            background: linear-gradient(135deg, #1e293b 0%, #172554 100%);
+            border: 1px solid #3b82f6;
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 28px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+        }
+
+        .demo-panel h3 {
+            font-size: 1.25rem;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #93c5fd;
+        }
+
+        .controls-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        input, select, button {
+            font-family: inherit;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            padding: 10px 14px;
+            font-size: 0.95rem;
+        }
+
+        input, select {
+            background: #0f172a;
+            color: var(--text-main);
+        }
+        input:focus, select:focus {
+            outline: 2px solid var(--primary);
+        }
+
+        button {
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-primary { background: var(--primary); color: #0f172a; }
+        .btn-primary:hover { background: var(--primary-hover); }
+
+        .btn-sync { background: #3b82f6; color: white; }
+        .btn-sync:hover { background: #2563eb; }
+
+        .btn-danger { background: #dc2626; color: white; }
+        .btn-danger:hover { background: #b91c1c; }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* Tabs & Tables */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .tab-btn {
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .tab-btn.active {
+            background: var(--surface-hover);
+            color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        .table-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            background: #172033;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.92rem;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .pill-food { background: rgba(234, 88, 12, 0.2); color: #fb923c; border: 1px solid #ea580c; }
+        .pill-travel { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid #3b82f6; }
+        .pill-tech { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid #a855f7; }
+        .pill-util { background: rgba(234, 179, 8, 0.2); color: #fde047; border: 1px solid #eab308; }
+        .pill-health { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
+        .pill-edu { background: rgba(236, 72, 153, 0.2); color: #f472b6; border: 1px solid #ec4899; }
+
+        .pill-conflict {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border: 1px solid #ef4444;
+            font-weight: 700;
+        }
+
+        /* Toast notifications */
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1e293b;
+            color: var(--text-main);
+            border: 1px solid var(--primary);
+            padding: 14px 20px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: none;
+            max-width: 450px;
+            z-index: 1000;
+            font-size: 0.92rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div>
+                <h1 style="font-size: 1.8rem; font-weight: 800; color: #f8fafc;">
+                    EdgeDB <span style="font-weight: 400; color: var(--primary);">| Offline-First Sync & Conflict Management</span>
+                </h1>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">
+                    Review 1 & Review 2 Combined Evaluation · Student: Vichruth M (24BCE2300) · DBMS Class Project
+                </p>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <span class="badge-live"><span class="pulse-dot"></span> PostgreSQL 16 (BCNF) Connected</span>
+                <span class="badge-live" style="color: #60a5fa; border-color: #3b82f6;"><span class="pulse-dot" style="background:#3b82f6;"></span> SQLite Edge Tier Active</span>
+            </div>
+        </header>
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Total Synced Expenses</div>
+                <div class="kpi-val" id="kpi-total-spent">₹0.00</div>
+                <div class="kpi-sub" id="kpi-expense-count">0 transactions in canonical table</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Smartwatch Activity</div>
+                <div class="kpi-val" id="kpi-total-steps">0</div>
+                <div class="kpi-sub">CMF Watch Pro 2 via Health Connect</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Offline Buffered Items</div>
+                <div class="kpi-val" style="color: #f59e0b;" id="kpi-pending-items">0</div>
+                <div class="kpi-sub" id="kpi-device-pending">Phone: 0 | Laptop: 0</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Trigger Conflicts Handled</div>
+                <div class="kpi-val" style="color: #f87171;" id="kpi-conflicts-count">0</div>
+                <div class="kpi-sub">Audited in conflict_log table</div>
+            </div>
+        </div>
+
+        <!-- Demonstration Action Panel -->
+        <div class="demo-panel">
+            <h3>⚡ Live Evaluation Demonstration Toolbar</h3>
+            <div class="controls-row">
+                <!-- Log Offline Expense -->
+                <div class="form-group">
+                    <label style="font-size: 0.85rem; font-weight: 600; color: #94a3b8;">1. Log Expense on Edge Device (Zero Network - Offline SQLite)</label>
+                    <div class="input-row">
+                        <select id="sim-device" style="width: 140px;">
+                            <option value="phone">📱 Phone (Pixel 8)</option>
+                            <option value="laptop">💻 Laptop (ThinkPad)</option>
+                        </select>
+                        <input type="number" id="sim-amount" placeholder="Amount (₹)" style="width: 130px;" value="350">
+                        <input type="text" id="sim-desc" placeholder="Description (e.g. Starbucks cold brew coffee)" style="flex: 1;" value="Blue Tokai cold brew coffee">
+                    </div>
+                    <button class="btn-primary" style="margin-top: 6px;" onclick="logOfflineExpense()">
+                        💾 Save to Offline SQLite (Auto-Classify via On-Device ML)
+                    </button>
+                </div>
+
+                <!-- Sync Controls -->
+                <div class="form-group">
+                    <label style="font-size: 0.85rem; font-weight: 600; color: #94a3b8;">2. Transactional Sync</label>
+                    <div class="btn-group">
+                        <button class="btn-sync" onclick="syncDevice('phone')">🔄 Sync Phone Batch</button>
+                        <button class="btn-sync" onclick="syncDevice('laptop')">🔄 Sync Laptop Batch</button>
+                    </div>
+                </div>
+
+                <!-- Centerpiece Conflict Button -->
+                <div class="form-group">
+                    <label style="font-size: 0.85rem; font-weight: 600; color: #fca5a5;">3. The Showstopper Race Test</label>
+                    <div class="btn-group">
+                        <button class="btn-danger" style="height: 100%;" onclick="runConflictDemo()">
+                            ⚡ Simulate Lost Update & Trigger Resolution
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Controls -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('tab-expenses')">Canonical Expenses (PostgreSQL)</button>
+            <button class="tab-btn" onclick="switchTab('tab-conflicts')">Conflict Audit Log (<span id="tab-conf-badge">0</span>)</button>
+            <button class="tab-btn" onclick="switchTab('tab-categories')">Category Totals (View: v_category_totals)</button>
+            <button class="tab-btn" onclick="switchTab('tab-activity')">Daily Wearable Activity (CMF Watch)</button>
+            <button class="tab-btn" onclick="switchTab('tab-devices')">Device Sync Status (v_device_sync_summary)</button>
+        </div>
+
+        <!-- Tab 1: Expenses -->
+        <div id="tab-expenses" class="tab-content active">
+            <div class="table-card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Device Source</th>
+                            <th>Category (ML Classified)</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Event Timestamp</th>
+                            <th>Version</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenses-table-body">
+                        <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Loading PostgreSQL expenses...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab 2: Conflict Log -->
+        <div id="tab-conflicts" class="tab-content">
+            <div class="table-card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Conflict ID</th>
+                            <th>Conflict Type</th>
+                            <th>Exp / Act ID</th>
+                            <th>Version (DB vs Stale)</th>
+                            <th>Canonical Stored Value</th>
+                            <th>Rejected Stale Value</th>
+                            <th>Resolution Enforced</th>
+                            <th>Resolved At</th>
+                        </tr>
+                    </thead>
+                    <tbody id="conflicts-table-body">
+                        <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No concurrency conflicts recorded yet. Click "Simulate Lost Update" to trigger one!</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab 3: Category Totals View -->
+        <div id="tab-categories" class="tab-content">
+            <div class="table-card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Category ID</th>
+                            <th>Category Name</th>
+                            <th>Description</th>
+                            <th>Transactions Count</th>
+                            <th>Total Amount (₹)</th>
+                            <th>Average Ticket (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="categories-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab 4: Wearable Daily Steps -->
+        <div id="tab-activity" class="tab-content">
+            <div class="table-card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Activity ID</th>
+                            <th>Hardware Device</th>
+                            <th>Calendar Date</th>
+                            <th>Step Count</th>
+                            <th>Row Version</th>
+                            <th>Last Sync Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activity-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab 5: Device Sync Telemetry -->
+        <div id="tab-devices" class="tab-content">
+            <div class="table-card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Device ID</th>
+                            <th>UUID</th>
+                            <th>Device Name</th>
+                            <th>EER Subtype</th>
+                            <th>Sync Batches</th>
+                            <th>Latest Sequence</th>
+                            <th>Last Reconciled</th>
+                        </tr>
+                    </thead>
+                    <tbody id="devices-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast"></div>
+
+    <script>
+        function showToast(message, isError = false) {
+            const toast = document.getElementById("toast");
+            toast.style.borderColor = isError ? "#ef4444" : "#38bdf8";
+            toast.innerHTML = message;
+            toast.style.display = "block";
+            setTimeout(() => { toast.style.display = "none"; }, 5000);
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+            document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+            
+            event.target.classList.add("active");
+            document.getElementById(tabId).classList.add("active");
+        }
+
+        function getPillClass(cat) {
+            if (!cat) return "pill-util";
+            if (cat.includes("Food")) return "pill-food";
+            if (cat.includes("Travel")) return "pill-travel";
+            if (cat.includes("Tech")) return "pill-tech";
+            if (cat.includes("Health")) return "pill-health";
+            if (cat.includes("Books")) return "pill-edu";
+            return "pill-util";
+        }
+
+        async function refreshDashboard() {
+            try {
+                // KPIs
+                const kpisRes = await fetch("/api/kpis");
+                const kpis = await kpisRes.json();
+                document.getElementById("kpi-total-spent").innerText = `₹${kpis.total_spent.toFixed(2)}`;
+                document.getElementById("kpi-expense-count").innerText = `${kpis.expense_count} canonical transactions`;
+                document.getElementById("kpi-total-steps").innerText = kpis.total_steps.toLocaleString();
+                document.getElementById("kpi-pending-items").innerText = (kpis.phone_pending + kpis.laptop_pending);
+                document.getElementById("kpi-device-pending").innerText = `Phone: ${kpis.phone_pending} | Laptop: ${kpis.laptop_pending}`;
+                document.getElementById("kpi-conflicts-count").innerText = kpis.conflict_count;
+                document.getElementById("tab-conf-badge").innerText = kpis.conflict_count;
+
+                // Expenses
+                const expRes = await fetch("/api/expenses");
+                const expenses = await expRes.json();
+                const expBody = document.getElementById("expenses-table-body");
+                expBody.innerHTML = expenses.map(e => `
+                    <tr>
+                        <td style="font-weight:700;">#${e.expense_id}</td>
+                        <td>${e.device_name} <span style="font-size:0.75rem; color:#94a3b8;">(${e.device_type})</span></td>
+                        <td><span class="pill ${getPillClass(e.category_name)}">${e.category_name}</span> <span style="font-size:0.75rem; color:#64748b;">(${Math.round(e.confidence*100)}%)</span></td>
+                        <td>${e.description}</td>
+                        <td style="font-weight:700; color:#38bdf8;">₹${parseFloat(e.amount).toFixed(2)}</td>
+                        <td style="font-size:0.85rem; color:#94a3b8;">${new Date(e.event_time).toLocaleString()}</td>
+                        <td><span style="background:#334155; padding:2px 8px; border-radius:4px; font-weight:700;">v${e.version}</span></td>
+                    </tr>
+                `).join("");
+
+                // Conflicts
+                const confRes = await fetch("/api/conflicts");
+                const conflicts = await confRes.json();
+                const confBody = document.getElementById("conflicts-table-body");
+                if (conflicts.length === 0) {
+                    confBody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No concurrency conflicts recorded yet. Click "Simulate Lost Update" to trigger one!</td></tr>`;
+                } else {
+                    confBody.innerHTML = conflicts.map(c => `
+                        <tr>
+                            <td style="font-weight:700; color:#f87171;">#${c.conflict_id}</td>
+                            <td><span class="pill pill-conflict">${c.conflict_type}</span></td>
+                            <td>Exp #${c.expense_id || '-'}</td>
+                            <td>v${c.existing_version} vs v${c.incoming_version}</td>
+                            <td style="color:#10b981; font-size:0.85rem;">${c.existing_value}</td>
+                            <td style="color:#f87171; font-size:0.85rem; text-decoration: line-through;">${c.incoming_value}</td>
+                            <td><span style="font-size:0.8rem; background:#334155; padding:3px 6px; border-radius:4px;">${c.resolution_strategy}</span></td>
+                            <td style="font-size:0.8rem; color:#94a3b8;">${new Date(c.resolved_at).toLocaleTimeString()}</td>
+                        </tr>
+                    `).join("");
+                }
+
+                // Categories View
+                const catRes = await fetch("/api/categories");
+                const categories = await catRes.json();
+                document.getElementById("categories-table-body").innerHTML = categories.map(c => `
+                    <tr>
+                        <td>#${c.category_id}</td>
+                        <td style="font-weight:600;"><span class="pill ${getPillClass(c.category_name)}">${c.category_name}</span></td>
+                        <td style="color:#94a3b8; font-size:0.85rem;">${c.category_description}</td>
+                        <td>${c.total_transactions}</td>
+                        <td style="font-weight:700; color:#38bdf8;">₹${parseFloat(c.total_amount).toFixed(2)}</td>
+                        <td>₹${parseFloat(c.avg_transaction_amount).toFixed(2)}</td>
+                    </tr>
+                `).join("");
+
+                // Activity View
+                const actRes = await fetch("/api/activity");
+                const activity = await actRes.json();
+                document.getElementById("activity-table-body").innerHTML = activity.map(a => `
+                    <tr>
+                        <td>#${a.activity_id}</td>
+                        <td>${a.device_name}</td>
+                        <td style="font-weight:600;">${a.entry_date}</td>
+                        <td style="font-weight:700; color:#34d399;">${a.step_count.toLocaleString()} steps</td>
+                        <td>v${a.version}</td>
+                        <td style="font-size:0.85rem; color:#94a3b8;">${new Date(a.updated_at).toLocaleDateString()}</td>
+                    </tr>
+                `).join("");
+
+                // Devices View
+                const devRes = await fetch("/api/devices");
+                const devices = await devRes.json();
+                document.getElementById("devices-table-body").innerHTML = devices.map(d => `
+                    <tr>
+                        <td>#${d.device_id}</td>
+                        <td style="font-family:monospace; color:#38bdf8;">${d.device_uuid}</td>
+                        <td>${d.device_name}</td>
+                        <td><span style="background:#334155; padding:2px 8px; border-radius:4px; font-weight:600;">${d.device_type}</span></td>
+                        <td>${d.total_sync_batches}</td>
+                        <td>Seq #${d.latest_batch_seq || 0}</td>
+                        <td style="font-size:0.85rem; color:#94a3b8;">${d.last_sync_time ? new Date(d.last_sync_time).toLocaleString() : 'Never'}</td>
+                    </tr>
+                `).join("");
+
+            } catch (err) {
+                console.error("Dashboard refresh error:", err);
+            }
+        }
+
+        async function logOfflineExpense() {
+            const device = document.getElementById("sim-device").value;
+            const amount = document.getElementById("sim-amount").value;
+            const description = document.getElementById("sim-desc").value;
+
+            if (!amount || !description) {
+                showToast("Please enter an amount and description.", true);
+                return;
+            }
+
+            const res = await fetch("/api/log-expense", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ device, amount, description })
+            });
+            const data = await res.json();
+            showToast(`✅ <b>Logged Offline:</b> ${data.description} (₹${data.amount}) buffered in <b>${device.toUpperCase()} SQLite</b>. Central Postgres unaffected.`);
+            refreshDashboard();
+        }
+
+        async function syncDevice(device) {
+            const res = await fetch("/api/sync", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ device })
+            });
+            const data = await res.json();
+            if (data.status === "SUCCESS") {
+                showToast(`🚀 <b>Sync Success!</b> Landed ${data.synced_count} items into central PostgreSQL (Batch #${data.batch_id}, Seq #${data.client_batch_seq}). Transaction committed!`);
+            } else {
+                showToast(data.message || data.error, data.status !== "SUCCESS");
+            }
+            refreshDashboard();
+        }
+
+        async function runConflictDemo() {
+            showToast("⚡ Simulating concurrent collision on Expense #1...");
+            const res = await fetch("/api/simulate-conflict", { method: "POST" });
+            const data = await res.json();
+            if (data.status === "CONFLICT_DETECTED_AND_RESOLVED") {
+                showToast(`🚨 <b>Trigger Handled Conflict!</b> Stale update from Laptop was rejected by PostgreSQL trigger <code>trg_expense_conflict</code>. Audited in <code>conflict_log</code> #${data.conflict_logged.conflict_id}!`);
+                refreshDashboard();
+                switchTab('tab-conflicts');
+            } else {
+                showToast(data.message || data.error, true);
+            }
+        }
+
+        // Initial load & poll
+        refreshDashboard();
+        setInterval(refreshDashboard, 5000);
+    </script>
+</body>
+</html>
