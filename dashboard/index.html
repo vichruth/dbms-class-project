@@ -3,206 +3,286 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EdgeDB — Offline-First Sync & Conflict Management</title>
+    <title>EdgeDB — Offline-First Relational Sync</title>
     <style>
         :root {
-            --bg: #0f172a;
-            --surface: #1e293b;
-            --surface-hover: #334155;
-            --primary: #38bdf8;
-            --primary-hover: #0ea5e9;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: #334155;
-            --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --bg: #000000;
+            --surface: #141416;
+            --surface-elevated: #1c1c1e;
+            --surface-hover: #242426;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(255, 255, 255, 0.16);
+            --text-primary: #f5f5f7;
+            --text-secondary: #86868b;
+            --text-tertiary: #636366;
+            --accent-blue: #0a84ff;
+            --accent-green: #30d158;
+            --accent-orange: #ff9f0a;
+            --accent-red: #ff453a;
+            --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+
         body {
             background-color: var(--bg);
-            color: var(--text-main);
-            font-family: var(--font);
-            line-height: 1.5;
-            padding: 24px;
+            color: var(--text-primary);
+            font-family: var(--font-stack);
+            font-size: 14px;
+            line-height: 1.47059;
+            letter-spacing: -0.01em;
+            padding: 40px 32px;
+            min-height: 100vh;
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1220px;
             margin: 0 auto;
         }
 
+        /* Header */
         header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-end;
+            margin-bottom: 36px;
+            padding-bottom: 24px;
             border-bottom: 1px solid var(--border);
-            padding-bottom: 20px;
-            margin-bottom: 24px;
         }
 
-        .badge-live {
-            background: rgba(16, 185, 129, 0.2);
-            color: var(--success);
-            border: 1px solid var(--success);
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-size: 0.85rem;
+        .header-title {
+            font-size: 26px;
             font-weight: 600;
+            letter-spacing: -0.025em;
+            color: var(--text-primary);
+        }
+
+        .header-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            letter-spacing: -0.005em;
+        }
+
+        .status-pill-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .status-pill {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: var(--surface-elevated);
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
             display: inline-flex;
             align-items: center;
             gap: 6px;
         }
 
-        .pulse-dot {
-            width: 8px;
-            height: 8px;
-            background: var(--success);
+        .status-indicator {
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(0.95); opacity: 0.8; }
-            50% { transform: scale(1.3); opacity: 1; }
-            100% { transform: scale(0.95); opacity: 0.8; }
+            background: var(--accent-green);
         }
 
         /* KPI Cards */
-        .kpi-grid {
+        .kpi-row {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            grid-template-columns: repeat(4, 1fr);
             gap: 16px;
-            margin-bottom: 28px;
+            margin-bottom: 32px;
         }
 
         .kpi-card {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-            transition: transform 0.2s;
-        }
-        .kpi-card:hover { transform: translateY(-2px); }
-        .kpi-label { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
-        .kpi-val { font-size: 1.9rem; font-weight: 700; color: var(--text-main); margin-top: 6px; }
-        .kpi-sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
-
-        /* Simulation Controls */
-        .demo-panel {
-            background: linear-gradient(135deg, #1e293b 0%, #172554 100%);
-            border: 1px solid #3b82f6;
             border-radius: 14px;
-            padding: 24px;
-            margin-bottom: 28px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            padding: 20px 22px;
+            transition: border-color 0.15s ease;
+        }
+        .kpi-card:hover {
+            border-color: var(--border-hover);
         }
 
-        .demo-panel h3 {
-            font-size: 1.25rem;
-            margin-bottom: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #93c5fd;
+        .kpi-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
         }
 
-        .controls-row {
+        .kpi-value {
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: -0.03em;
+            color: var(--text-primary);
+            margin-top: 8px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .kpi-meta {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-top: 4px;
+        }
+
+        /* Control Panel */
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 22px 24px;
+            margin-bottom: 32px;
+        }
+
+        .panel-header {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 16px;
+        }
+
+        .controls-grid {
             display: grid;
-            grid-template-columns: 2fr 1fr 1fr;
-            gap: 20px;
+            grid-template-columns: 1.8fr 1fr 1fr;
+            gap: 24px;
+            align-items: end;
         }
 
-        .form-group {
+        .control-block {
             display: flex;
             flex-direction: column;
             gap: 8px;
         }
 
-        .input-row {
-            display: flex;
-            gap: 10px;
+        .control-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
         }
 
-        input, select, button {
-            font-family: inherit;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            padding: 10px 14px;
-            font-size: 0.95rem;
+        .input-group {
+            display: flex;
+            gap: 8px;
         }
 
         input, select {
-            background: #0f172a;
-            color: var(--text-main);
+            background: var(--surface-elevated);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-family: inherit;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.15s ease;
         }
+
         input:focus, select:focus {
-            outline: 2px solid var(--primary);
+            border-color: var(--accent-blue);
         }
 
         button {
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            padding: 9px 14px;
+            border-radius: 8px;
+            border: 1px solid transparent;
             cursor: pointer;
-            font-weight: 600;
-            transition: all 0.2s;
-            border: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
+            transition: all 0.15s ease;
+            white-space: nowrap;
         }
 
-        .btn-primary { background: var(--primary); color: #0f172a; }
-        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-subtle {
+            background: var(--surface-elevated);
+            color: var(--text-primary);
+            border-color: var(--border);
+        }
+        .btn-subtle:hover {
+            background: var(--surface-hover);
+            border-color: var(--border-hover);
+        }
 
-        .btn-sync { background: #3b82f6; color: white; }
-        .btn-sync:hover { background: #2563eb; }
+        .btn-primary {
+            background: #ffffff;
+            color: #000000;
+        }
+        .btn-primary:hover {
+            background: #e5e5e7;
+        }
 
-        .btn-danger { background: #dc2626; color: white; }
-        .btn-danger:hover { background: #b91c1c; }
+        .btn-accent {
+            background: rgba(10, 132, 255, 0.12);
+            color: var(--accent-blue);
+            border-color: rgba(10, 132, 255, 0.28);
+        }
+        .btn-accent:hover {
+            background: rgba(10, 132, 255, 0.2);
+        }
 
-        .btn-group {
+        .btn-action-group {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            justify-content: flex-end;
-        }
-
-        /* Tabs & Tables */
-        .tabs {
-            display: flex;
             gap: 8px;
-            margin-bottom: 16px;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 8px;
         }
 
-        .tab-btn {
+        /* Segmented Tabs (Apple style) */
+        .segmented-nav {
+            display: inline-flex;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 3px;
+            margin-bottom: 18px;
+        }
+
+        .nav-item {
             background: transparent;
-            color: var(--text-muted);
+            color: var(--text-secondary);
             border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
+            padding: 6px 14px;
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
-            font-weight: 600;
-        }
-        .tab-btn.active {
-            background: var(--surface-hover);
-            color: var(--primary);
+            transition: all 0.15s ease;
         }
 
-        .tab-content {
+        .nav-item:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: var(--surface-elevated);
+            color: var(--text-primary);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Tab Content & Tables */
+        .tab-pane {
             display: none;
         }
-        .tab-content.active {
+        .tab-pane.active {
             display: block;
         }
 
-        .table-card {
+        .table-container {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 12px;
+            border-radius: 14px;
             overflow: hidden;
         }
 
@@ -213,216 +293,223 @@
         }
 
         th {
-            background: #172033;
-            color: var(--text-muted);
-            font-size: 0.8rem;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
             text-transform: uppercase;
-            padding: 14px 18px;
+            letter-spacing: 0.04em;
+            padding: 12px 18px;
             border-bottom: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.02);
         }
 
         td {
             padding: 14px 18px;
-            border-bottom: 1px solid var(--border);
-            font-size: 0.92rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 13px;
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
         }
 
         tr:hover td {
-            background: rgba(255, 255, 255, 0.02);
+            background: rgba(255, 255, 255, 0.015);
         }
 
-        .pill {
+        /* Tags & Badges */
+        .tag {
             display: inline-block;
-            padding: 3px 10px;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
+            font-size: 11px;
+            font-weight: 500;
+            padding: 2px 8px;
+            border-radius: 6px;
+            background: var(--surface-elevated);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
         }
 
-        .pill-food { background: rgba(234, 88, 12, 0.2); color: #fb923c; border: 1px solid #ea580c; }
-        .pill-travel { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid #3b82f6; }
-        .pill-tech { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid #a855f7; }
-        .pill-util { background: rgba(234, 179, 8, 0.2); color: #fde047; border: 1px solid #eab308; }
-        .pill-health { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
-        .pill-edu { background: rgba(236, 72, 153, 0.2); color: #f472b6; border: 1px solid #ec4899; }
-
-        .pill-conflict {
-            background: rgba(239, 68, 68, 0.2);
-            color: #f87171;
-            border: 1px solid #ef4444;
-            font-weight: 700;
+        .tag-version {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
         }
 
-        /* Toast notifications */
-        #toast {
+        .tag-conflict {
+            background: rgba(255, 69, 58, 0.1);
+            color: var(--accent-red);
+            border-color: rgba(255, 69, 58, 0.25);
+        }
+
+        /* Dynamic Island / Sleek Toast */
+        #notification-banner {
             position: fixed;
-            bottom: 24px;
-            right: 24px;
-            background: #1e293b;
-            color: var(--text-main);
-            border: 1px solid var(--primary);
-            padding: 14px 20px;
-            border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(28, 28, 30, 0.88);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            color: var(--text-primary);
+            padding: 10px 22px;
+            border-radius: 9999px;
+            font-size: 13px;
+            font-weight: 500;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
             display: none;
-            max-width: 450px;
-            z-index: 1000;
-            font-size: 0.92rem;
+            z-index: 9999;
+            max-width: 600px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
+        <!-- Minimal Apple Header -->
         <header>
             <div>
-                <h1 style="font-size: 1.8rem; font-weight: 800; color: #f8fafc;">
-                    EdgeDB <span style="font-weight: 400; color: var(--primary);">| Offline-First Sync & Conflict Management</span>
-                </h1>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">
-                    Review 1 & Review 2 Combined Evaluation · Student: Vichruth M (24BCE2300) · DBMS Class Project
-                </p>
+                <h1 class="header-title">EdgeDB</h1>
+                <p class="header-subtitle">Offline-First Relational Sync & Concurrency Control · Vichruth M (24BCE2300)</p>
             </div>
-            <div style="display: flex; gap: 12px; align-items: center;">
-                <span class="badge-live"><span class="pulse-dot"></span> PostgreSQL 16 (BCNF) Connected</span>
-                <span class="badge-live" style="color: #60a5fa; border-color: #3b82f6;"><span class="pulse-dot" style="background:#3b82f6;"></span> SQLite Edge Tier Active</span>
+            <div class="status-pill-group">
+                <span class="status-pill"><span class="status-indicator"></span>PostgreSQL 16 (BCNF)</span>
+                <span class="status-pill"><span class="status-indicator" style="background: var(--accent-blue);"></span>SQLite Edge Tier</span>
             </div>
         </header>
 
-        <!-- KPI Cards -->
-        <div class="kpi-grid">
+        <!-- KPI Metrics -->
+        <div class="kpi-row">
             <div class="kpi-card">
-                <div class="kpi-label">Total Synced Expenses</div>
-                <div class="kpi-val" id="kpi-total-spent">₹0.00</div>
-                <div class="kpi-sub" id="kpi-expense-count">0 transactions in canonical table</div>
+                <div class="kpi-label">Canonical Expenses</div>
+                <div class="kpi-value" id="kpi-total-spent">₹0.00</div>
+                <div class="kpi-meta" id="kpi-expense-count">0 transactions committed</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">Smartwatch Activity</div>
-                <div class="kpi-val" id="kpi-total-steps">0</div>
-                <div class="kpi-sub">CMF Watch Pro 2 via Health Connect</div>
+                <div class="kpi-label">Wearable Steps</div>
+                <div class="kpi-value" id="kpi-total-steps">0</div>
+                <div class="kpi-meta">CMF Watch Pro 2</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">Offline Buffered Items</div>
-                <div class="kpi-val" style="color: #f59e0b;" id="kpi-pending-items">0</div>
-                <div class="kpi-sub" id="kpi-device-pending">Phone: 0 | Laptop: 0</div>
+                <div class="kpi-label">Pending Edge Writes</div>
+                <div class="kpi-value" style="color: var(--accent-orange);" id="kpi-pending-items">0</div>
+                <div class="kpi-meta" id="kpi-device-pending">Phone: 0 · Laptop: 0</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">Trigger Conflicts Handled</div>
-                <div class="kpi-val" style="color: #f87171;" id="kpi-conflicts-count">0</div>
-                <div class="kpi-sub">Audited in conflict_log table</div>
+                <div class="kpi-label">Conflicts Resolved</div>
+                <div class="kpi-value" style="color: var(--accent-red);" id="kpi-conflicts-count">0</div>
+                <div class="kpi-meta">Audited in conflict_log</div>
             </div>
         </div>
 
-        <!-- Demonstration Action Panel -->
-        <div class="demo-panel">
-            <h3>⚡ Live Evaluation Demonstration Toolbar</h3>
-            <div class="controls-row">
-                <!-- Log Offline Expense -->
-                <div class="form-group">
-                    <label style="font-size: 0.85rem; font-weight: 600; color: #94a3b8;">1. Log Expense on Edge Device (Zero Network - Offline SQLite)</label>
-                    <div class="input-row">
+        <!-- Demonstration Controls Panel -->
+        <div class="panel">
+            <div class="panel-header">Evaluation Controls</div>
+            <div class="controls-grid">
+                <!-- 1. Offline write -->
+                <div class="control-block">
+                    <span class="control-label">1. Record Local Edge Transaction (Offline SQLite)</span>
+                    <div class="input-group">
                         <select id="sim-device" style="width: 140px;">
-                            <option value="phone">📱 Phone (Pixel 8)</option>
-                            <option value="laptop">💻 Laptop (ThinkPad)</option>
+                            <option value="phone">Pixel 8</option>
+                            <option value="laptop">ThinkPad</option>
                         </select>
-                        <input type="number" id="sim-amount" placeholder="Amount (₹)" style="width: 130px;" value="350">
-                        <input type="text" id="sim-desc" placeholder="Description (e.g. Starbucks cold brew coffee)" style="flex: 1;" value="Blue Tokai cold brew coffee">
+                        <input type="number" id="sim-amount" placeholder="Amount (₹)" style="width: 110px;" value="240">
+                        <input type="text" id="sim-desc" placeholder="Description" style="flex: 1;" value="Blue Tokai Cold Brew">
                     </div>
-                    <button class="btn-primary" style="margin-top: 6px;" onclick="logOfflineExpense()">
-                        💾 Save to Offline SQLite (Auto-Classify via On-Device ML)
+                    <button class="btn-primary" style="margin-top: 4px;" onclick="logOfflineExpense()">
+                        Save to Offline Store
                     </button>
                 </div>
 
-                <!-- Sync Controls -->
-                <div class="form-group">
-                    <label style="font-size: 0.85rem; font-weight: 600; color: #94a3b8;">2. Transactional Sync</label>
-                    <div class="btn-group">
-                        <button class="btn-sync" onclick="syncDevice('phone')">🔄 Sync Phone Batch</button>
-                        <button class="btn-sync" onclick="syncDevice('laptop')">🔄 Sync Laptop Batch</button>
+                <!-- 2. Sync -->
+                <div class="control-block">
+                    <span class="control-label">2. Batch Synchronization</span>
+                    <div class="btn-action-group">
+                        <button class="btn-subtle" onclick="syncDevice('phone')">Sync Phone to Postgres</button>
+                        <button class="btn-subtle" onclick="syncDevice('laptop')">Sync Laptop to Postgres</button>
                     </div>
                 </div>
 
-                <!-- Centerpiece Conflict Button -->
-                <div class="form-group">
-                    <label style="font-size: 0.85rem; font-weight: 600; color: #fca5a5;">3. Concurrency Conflict Tests</label>
-                    <div class="btn-group">
-                        <button class="btn-danger" style="padding: 8px 12px; font-size: 0.88rem;" onclick="runWatchConflictDemo()">
-                            ⌚ Simulate Watch vs. Phone Step Conflict
-                        </button>
-                        <button class="btn-danger" style="background:#b91c1c; padding: 8px 12px; font-size: 0.88rem;" onclick="runConflictDemo()">
-                            ⚡ Simulate Expense Collision (Lost Update)
-                        </button>
+                <!-- 3. Conflict Demos -->
+                <div class="control-block">
+                    <span class="control-label">3. Concurrency Tests</span>
+                    <div class="btn-action-group">
+                        <button class="btn-accent" onclick="runWatchConflictDemo()">Test Watch vs. Phone Collision</button>
+                        <button class="btn-subtle" onclick="runConflictDemo()">Test Expense Stale Overwrite</button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Tab Controls -->
-        <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('tab-expenses')">Canonical Expenses (PostgreSQL)</button>
-            <button class="tab-btn" onclick="switchTab('tab-conflicts')">Conflict Audit Log (<span id="tab-conf-badge">0</span>)</button>
-            <button class="tab-btn" onclick="switchTab('tab-categories')">Category Totals (View: v_category_totals)</button>
-            <button class="tab-btn" onclick="switchTab('tab-activity')">Daily Wearable Activity (CMF Watch)</button>
-            <button class="tab-btn" onclick="switchTab('tab-devices')">Device Sync Status (v_device_sync_summary)</button>
+        <!-- Minimalist Segmented Tabs -->
+        <div class="segmented-nav">
+            <button class="nav-item active" onclick="switchTab(event, 'tab-expenses')">Canonical Expenses</button>
+            <button class="nav-item" onclick="switchTab(event, 'tab-conflicts')">Conflict Audit Log (<span id="tab-conf-badge">0</span>)</button>
+            <button class="nav-item" onclick="switchTab(event, 'tab-categories')">Category Totals</button>
+            <button class="nav-item" onclick="switchTab(event, 'tab-activity')">Wearable Activity</button>
+            <button class="nav-item" onclick="switchTab(event, 'tab-devices')">Device Telemetry</button>
         </div>
 
-        <!-- Tab 1: Expenses -->
-        <div id="tab-expenses" class="tab-content active">
-            <div class="table-card">
+        <!-- 1. Canonical Expenses -->
+        <div id="tab-expenses" class="tab-pane active">
+            <div class="table-container">
                 <table>
                     <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Device Source</th>
-                            <th>Category (ML Classified)</th>
+                            <th>Device</th>
+                            <th>Category</th>
                             <th>Description</th>
                             <th>Amount</th>
-                            <th>Event Timestamp</th>
+                            <th>Timestamp</th>
                             <th>Version</th>
                         </tr>
                     </thead>
                     <tbody id="expenses-table-body">
-                        <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Loading PostgreSQL expenses...</td></tr>
+                        <tr><td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 32px;">Loading records...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- Tab 2: Conflict Log -->
-        <div id="tab-conflicts" class="tab-content">
-            <div class="table-card">
+        <!-- 2. Conflict Audit Log -->
+        <div id="tab-conflicts" class="tab-pane">
+            <div class="table-container">
                 <table>
                     <thead>
                         <tr>
-                            <th>Conflict ID</th>
-                            <th>Conflict Type</th>
-                            <th>Exp / Act ID</th>
-                            <th>Version (DB vs Stale)</th>
+                            <th>Log ID</th>
+                            <th>Type</th>
+                            <th>Target</th>
+                            <th>Version State</th>
                             <th>Canonical Stored Value</th>
                             <th>Rejected Stale Value</th>
                             <th>Resolution Enforced</th>
-                            <th>Resolved At</th>
+                            <th>Time</th>
                         </tr>
                     </thead>
                     <tbody id="conflicts-table-body">
-                        <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No concurrency conflicts recorded yet. Click "Simulate Lost Update" to trigger one!</td></tr>
+                        <tr><td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 32px;">No conflicts detected. Trigger a collision above to demonstrate.</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- Tab 3: Category Totals View -->
-        <div id="tab-categories" class="tab-content">
-            <div class="table-card">
+        <!-- 3. Category Totals View -->
+        <div id="tab-categories" class="tab-pane">
+            <div class="table-container">
                 <table>
                     <thead>
                         <tr>
-                            <th>Category ID</th>
-                            <th>Category Name</th>
+                            <th>ID</th>
+                            <th>Category</th>
                             <th>Description</th>
-                            <th>Transactions Count</th>
-                            <th>Total Amount (₹)</th>
-                            <th>Average Ticket (₹)</th>
+                            <th>Transactions</th>
+                            <th>Total Amount</th>
+                            <th>Avg. Ticket</th>
                         </tr>
                     </thead>
                     <tbody id="categories-table-body"></tbody>
@@ -430,18 +517,18 @@
             </div>
         </div>
 
-        <!-- Tab 4: Wearable Daily Steps -->
-        <div id="tab-activity" class="tab-content">
-            <div class="table-card">
+        <!-- 4. Wearable Activity View -->
+        <div id="tab-activity" class="tab-pane">
+            <div class="table-container">
                 <table>
                     <thead>
                         <tr>
-                            <th>Activity ID</th>
-                            <th>Hardware Device</th>
-                            <th>Calendar Date</th>
+                            <th>ID</th>
+                            <th>Device Source</th>
+                            <th>Date</th>
                             <th>Step Count</th>
-                            <th>Row Version</th>
-                            <th>Last Sync Timestamp</th>
+                            <th>Version</th>
+                            <th>Last Synchronized</th>
                         </tr>
                     </thead>
                     <tbody id="activity-table-body"></tbody>
@@ -449,19 +536,18 @@
             </div>
         </div>
 
-        <!-- Tab 5: Device Sync Telemetry -->
-        <div id="tab-devices" class="tab-content">
-            <div class="table-card">
+        <!-- 5. Device Telemetry View -->
+        <div id="tab-devices" class="tab-pane">
+            <div class="table-container">
                 <table>
                     <thead>
                         <tr>
-                            <th>Device ID</th>
+                            <th>Device</th>
                             <th>UUID</th>
-                            <th>Device Name</th>
-                            <th>EER Subtype</th>
+                            <th>Subtype</th>
                             <th>Sync Batches</th>
                             <th>Latest Sequence</th>
-                            <th>Last Reconciled</th>
+                            <th>Last Synchronized</th>
                         </tr>
                     </thead>
                     <tbody id="devices-table-body"></tbody>
@@ -470,34 +556,24 @@
         </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div id="toast"></div>
+    <!-- Minimal Floating Island Toast -->
+    <div id="notification-banner"></div>
 
     <script>
-        function showToast(message, isError = false) {
-            const toast = document.getElementById("toast");
-            toast.style.borderColor = isError ? "#ef4444" : "#38bdf8";
-            toast.innerHTML = message;
-            toast.style.display = "block";
-            setTimeout(() => { toast.style.display = "none"; }, 5000);
+        function showNotification(html) {
+            const banner = document.getElementById("notification-banner");
+            banner.innerHTML = html;
+            banner.style.display = "block";
+            clearTimeout(banner._timeout);
+            banner._timeout = setTimeout(() => { banner.style.display = "none"; }, 5000);
         }
 
-        function switchTab(tabId) {
-            document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
-            document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+        function switchTab(evt, tabId) {
+            document.querySelectorAll(".nav-item").forEach(btn => btn.classList.remove("active"));
+            document.querySelectorAll(".tab-pane").forEach(pane => pane.classList.remove("active"));
             
-            event.target.classList.add("active");
+            evt.currentTarget.classList.add("active");
             document.getElementById(tabId).classList.add("active");
-        }
-
-        function getPillClass(cat) {
-            if (!cat) return "pill-util";
-            if (cat.includes("Food")) return "pill-food";
-            if (cat.includes("Travel")) return "pill-travel";
-            if (cat.includes("Tech")) return "pill-tech";
-            if (cat.includes("Health")) return "pill-health";
-            if (cat.includes("Books")) return "pill-edu";
-            return "pill-util";
         }
 
         async function refreshDashboard() {
@@ -506,10 +582,10 @@
                 const kpisRes = await fetch("/api/kpis");
                 const kpis = await kpisRes.json();
                 document.getElementById("kpi-total-spent").innerText = `₹${kpis.total_spent.toFixed(2)}`;
-                document.getElementById("kpi-expense-count").innerText = `${kpis.expense_count} canonical transactions`;
+                document.getElementById("kpi-expense-count").innerText = `${kpis.expense_count} transactions committed`;
                 document.getElementById("kpi-total-steps").innerText = kpis.total_steps.toLocaleString();
                 document.getElementById("kpi-pending-items").innerText = (kpis.phone_pending + kpis.laptop_pending);
-                document.getElementById("kpi-device-pending").innerText = `Phone: ${kpis.phone_pending} | Laptop: ${kpis.laptop_pending}`;
+                document.getElementById("kpi-device-pending").innerText = `Phone: ${kpis.phone_pending} · Laptop: ${kpis.laptop_pending}`;
                 document.getElementById("kpi-conflicts-count").innerText = kpis.conflict_count;
                 document.getElementById("tab-conf-badge").innerText = kpis.conflict_count;
 
@@ -519,13 +595,13 @@
                 const expBody = document.getElementById("expenses-table-body");
                 expBody.innerHTML = expenses.map(e => `
                     <tr>
-                        <td style="font-weight:700;">#${e.expense_id}</td>
-                        <td>${e.device_name} <span style="font-size:0.75rem; color:#94a3b8;">(${e.device_type})</span></td>
-                        <td><span class="pill ${getPillClass(e.category_name)}">${e.category_name}</span> <span style="font-size:0.75rem; color:#64748b;">(${Math.round(e.confidence*100)}%)</span></td>
+                        <td style="color: var(--text-tertiary);">#${e.expense_id}</td>
+                        <td>${e.device_name}</td>
+                        <td><span class="tag">${e.category_name}</span></td>
                         <td>${e.description}</td>
-                        <td style="font-weight:700; color:#38bdf8;">₹${parseFloat(e.amount).toFixed(2)}</td>
-                        <td style="font-size:0.85rem; color:#94a3b8;">${new Date(e.event_time).toLocaleString()}</td>
-                        <td><span style="background:#334155; padding:2px 8px; border-radius:4px; font-weight:700;">v${e.version}</span></td>
+                        <td style="font-weight: 500;">₹${parseFloat(e.amount).toFixed(2)}</td>
+                        <td style="color: var(--text-secondary); font-size: 12px;">${new Date(e.event_time).toLocaleDateString()}</td>
+                        <td><span class="tag-version">v${e.version}</span></td>
                     </tr>
                 `).join("");
 
@@ -534,18 +610,18 @@
                 const conflicts = await confRes.json();
                 const confBody = document.getElementById("conflicts-table-body");
                 if (conflicts.length === 0) {
-                    confBody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No concurrency conflicts recorded yet. Click "Simulate Lost Update" to trigger one!</td></tr>`;
+                    confBody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 32px;">No conflicts detected. Trigger a collision above to demonstrate.</td></tr>`;
                 } else {
                     confBody.innerHTML = conflicts.map(c => `
                         <tr>
-                            <td style="font-weight:700; color:#f87171;">#${c.conflict_id}</td>
-                            <td><span class="pill pill-conflict">${c.conflict_type}</span></td>
-                            <td>Exp #${c.expense_id || '-'}</td>
-                            <td>v${c.existing_version} vs v${c.incoming_version}</td>
-                            <td style="color:#10b981; font-size:0.85rem;">${c.existing_value}</td>
-                            <td style="color:#f87171; font-size:0.85rem; text-decoration: line-through;">${c.incoming_value}</td>
-                            <td><span style="font-size:0.8rem; background:#334155; padding:3px 6px; border-radius:4px;">${c.resolution_strategy}</span></td>
-                            <td style="font-size:0.8rem; color:#94a3b8;">${new Date(c.resolved_at).toLocaleTimeString()}</td>
+                            <td style="color: var(--text-tertiary);">#${c.conflict_id}</td>
+                            <td><span class="tag tag-conflict">${c.conflict_type}</span></td>
+                            <td>${c.expense_id ? `Exp #${c.expense_id}` : `Act #${c.activity_id}`}</td>
+                            <td class="tag-version">v${c.existing_version} vs v${c.incoming_version}</td>
+                            <td style="color: var(--accent-green); font-size: 12px;">${c.existing_value}</td>
+                            <td style="color: var(--accent-red); font-size: 12px; text-decoration: line-through;">${c.incoming_value}</td>
+                            <td><span class="tag">${c.resolution_strategy}</span></td>
+                            <td style="color: var(--text-secondary); font-size: 12px;">${new Date(c.resolved_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
                         </tr>
                     `).join("");
                 }
@@ -555,11 +631,11 @@
                 const categories = await catRes.json();
                 document.getElementById("categories-table-body").innerHTML = categories.map(c => `
                     <tr>
-                        <td>#${c.category_id}</td>
-                        <td style="font-weight:600;"><span class="pill ${getPillClass(c.category_name)}">${c.category_name}</span></td>
-                        <td style="color:#94a3b8; font-size:0.85rem;">${c.category_description}</td>
+                        <td style="color: var(--text-tertiary);">#${c.category_id}</td>
+                        <td style="font-weight: 500;">${c.category_name}</td>
+                        <td style="color: var(--text-secondary); font-size: 12px;">${c.category_description}</td>
                         <td>${c.total_transactions}</td>
-                        <td style="font-weight:700; color:#38bdf8;">₹${parseFloat(c.total_amount).toFixed(2)}</td>
+                        <td style="font-weight: 500;">₹${parseFloat(c.total_amount).toFixed(2)}</td>
                         <td>₹${parseFloat(c.avg_transaction_amount).toFixed(2)}</td>
                     </tr>
                 `).join("");
@@ -569,12 +645,12 @@
                 const activity = await actRes.json();
                 document.getElementById("activity-table-body").innerHTML = activity.map(a => `
                     <tr>
-                        <td>#${a.activity_id}</td>
+                        <td style="color: var(--text-tertiary);">#${a.activity_id}</td>
                         <td>${a.device_name}</td>
-                        <td style="font-weight:600;">${a.entry_date}</td>
-                        <td style="font-weight:700; color:#34d399;">${a.step_count.toLocaleString()} steps</td>
-                        <td>v${a.version}</td>
-                        <td style="font-size:0.85rem; color:#94a3b8;">${new Date(a.updated_at).toLocaleDateString()}</td>
+                        <td style="font-weight: 500;">${a.entry_date}</td>
+                        <td style="font-weight: 500; color: var(--accent-green);">${a.step_count.toLocaleString()} steps</td>
+                        <td class="tag-version">v${a.version}</td>
+                        <td style="color: var(--text-secondary); font-size: 12px;">${new Date(a.updated_at).toLocaleDateString()}</td>
                     </tr>
                 `).join("");
 
@@ -583,13 +659,12 @@
                 const devices = await devRes.json();
                 document.getElementById("devices-table-body").innerHTML = devices.map(d => `
                     <tr>
-                        <td>#${d.device_id}</td>
-                        <td style="font-family:monospace; color:#38bdf8;">${d.device_uuid}</td>
-                        <td>${d.device_name}</td>
-                        <td><span style="background:#334155; padding:2px 8px; border-radius:4px; font-weight:600;">${d.device_type}</span></td>
+                        <td style="font-weight: 500;">${d.device_name}</td>
+                        <td style="color: var(--text-tertiary); font-family: ui-monospace, monospace; font-size: 12px;">${d.device_uuid}</td>
+                        <td><span class="tag">${d.device_type}</span></td>
                         <td>${d.total_sync_batches}</td>
-                        <td>Seq #${d.latest_batch_seq || 0}</td>
-                        <td style="font-size:0.85rem; color:#94a3b8;">${d.last_sync_time ? new Date(d.last_sync_time).toLocaleString() : 'Never'}</td>
+                        <td class="tag-version">Seq #${d.latest_batch_seq || 0}</td>
+                        <td style="color: var(--text-secondary); font-size: 12px;">${d.last_sync_time ? new Date(d.last_sync_time).toLocaleTimeString() : 'Never'}</td>
                     </tr>
                 `).join("");
 
@@ -603,10 +678,7 @@
             const amount = document.getElementById("sim-amount").value;
             const description = document.getElementById("sim-desc").value;
 
-            if (!amount || !description) {
-                showToast("Please enter an amount and description.", true);
-                return;
-            }
+            if (!amount || !description) return;
 
             const res = await fetch("/api/log-expense", {
                 method: "POST",
@@ -614,7 +686,7 @@
                 body: JSON.stringify({ device, amount, description })
             });
             const data = await res.json();
-            showToast(`✅ <b>Logged Offline:</b> ${data.description} (₹${data.amount}) buffered in <b>${device.toUpperCase()} SQLite</b>. Central Postgres unaffected.`);
+            showNotification(`Buffered ${data.description} (₹${data.amount}) in local SQLite. Central DB untouched.`);
             refreshDashboard();
         }
 
@@ -626,43 +698,35 @@
             });
             const data = await res.json();
             if (data.status === "SUCCESS") {
-                showToast(`🚀 <b>Sync Success!</b> Landed ${data.synced_count} items into central PostgreSQL (Batch #${data.batch_id}, Seq #${data.client_batch_seq}). Transaction committed!`);
+                showNotification(`Batch committed to PostgreSQL · ${data.synced_count} records integrated.`);
             } else {
-                showToast(data.message || data.error, data.status !== "SUCCESS");
+                showNotification(data.message || data.error);
             }
             refreshDashboard();
         }
 
         async function runConflictDemo() {
-            showToast("⚡ Simulating concurrent collision on Expense #1...");
             const res = await fetch("/api/simulate-conflict", { method: "POST" });
             const data = await res.json();
             if (data.status === "CONFLICT_DETECTED_AND_RESOLVED") {
-                showToast(`🚨 <b>Trigger Handled Conflict!</b> Stale update from Laptop was rejected by PostgreSQL trigger <code>trg_expense_conflict</code>. Audited in <code>conflict_log</code> #${data.conflict_logged.conflict_id}!`);
+                showNotification(`Collision caught by trigger: Stale write rejected and audited in conflict_log.`);
                 refreshDashboard();
-                switchTab('tab-conflicts');
-            } else {
-                showToast(data.message || data.error, true);
+                document.querySelectorAll(".nav-item")[1].click();
             }
         }
 
         async function runWatchConflictDemo() {
-            showToast("⌚ Simulating multi-sensor collision: CMF Watch Pro 2 vs. Phone Pedometer...");
             const res = await fetch("/api/simulate-watch-conflict", { method: "POST" });
             const data = await res.json();
             if (data.status === "WATCH_PHONE_CONFLICT_RESOLVED") {
-                showToast(`🚨 <b>Sensor Discrepancy Caught!</b> Phone recorded ${data.phone_sensor.steps} steps vs. Watch ${data.watch_sensor.steps} steps. Wearable prioritized & conflict audited in <code>conflict_log</code> #${data.conflict_id}!`);
+                showNotification(`Sensor conflict reconciled: Phone ${data.phone_sensor.steps} steps vs. Watch ${data.watch_sensor.steps} steps. Wearable prioritized.`);
                 refreshDashboard();
-                switchTab('tab-conflicts');
-            } else {
-                showToast(data.message || data.error, true);
+                document.querySelectorAll(".nav-item")[1].click();
             }
         }
 
-        // Initial load & poll
         refreshDashboard();
         setInterval(refreshDashboard, 5000);
     </script>
 </body>
 </html>
-
