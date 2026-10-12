@@ -395,7 +395,7 @@
             <div class="kpi-card">
                 <div class="kpi-label">Pending Edge Writes</div>
                 <div class="kpi-value" style="color: var(--accent-orange);" id="kpi-pending-items">0</div>
-                <div class="kpi-meta" id="kpi-device-pending">Phone: 0 · Laptop: 0</div>
+                <div class="kpi-meta" id="kpi-device-pending">Nothing Phone: 0 · Lenovo LOQ: 0</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-label">Conflicts Resolved</div>
@@ -406,15 +406,15 @@
 
         <!-- Demonstration Controls Panel -->
         <div class="panel">
-            <div class="panel-header">Evaluation Controls</div>
+            <div class="panel-header">Device Controls & Edge Sync</div>
             <div class="controls-grid">
                 <!-- 1. Offline write -->
                 <div class="control-block">
                     <span class="control-label">1. Record Local Edge Transaction (Offline SQLite)</span>
                     <div class="input-group">
-                        <select id="sim-device" style="width: 140px;">
-                            <option value="phone">Pixel 8</option>
-                            <option value="laptop">ThinkPad</option>
+                        <select id="sim-device" style="width: 150px;">
+                            <option value="phone">Nothing Phone</option>
+                            <option value="laptop">Lenovo LOQ</option>
                         </select>
                         <input type="number" id="sim-amount" placeholder="Amount (₹)" style="width: 110px;" value="240">
                         <input type="text" id="sim-desc" placeholder="Description" style="flex: 1;" value="Blue Tokai Cold Brew">
@@ -428,8 +428,8 @@
                 <div class="control-block">
                     <span class="control-label">2. Batch Synchronization</span>
                     <div class="btn-action-group">
-                        <button class="btn-subtle" onclick="syncDevice('phone')">Sync Phone to Postgres</button>
-                        <button class="btn-subtle" onclick="syncDevice('laptop')">Sync Laptop to Postgres</button>
+                        <button class="btn-subtle" onclick="syncDevice('phone')">Sync Nothing Phone</button>
+                        <button class="btn-subtle" onclick="syncDevice('laptop')">Sync Lenovo LOQ</button>
                     </div>
                 </div>
 
@@ -437,8 +437,8 @@
                 <div class="control-block">
                     <span class="control-label">3. Concurrency Tests</span>
                     <div class="btn-action-group">
-                        <button class="btn-accent" onclick="runWatchConflictDemo()">Test Watch vs. Phone Collision</button>
-                        <button class="btn-subtle" onclick="runConflictDemo()">Test Expense Stale Overwrite</button>
+                        <button class="btn-accent" onclick="runWatchConflictDemo()">CMF Watch vs. Nothing Phone Steps</button>
+                        <button class="btn-subtle" onclick="runConflictDemo()">Nothing Phone vs. Lenovo LOQ Expenses</button>
                     </div>
                 </div>
             </div>
@@ -709,7 +709,7 @@
             const res = await fetch("/api/simulate-conflict", { method: "POST" });
             const data = await res.json();
             if (data.status === "CONFLICT_DETECTED_AND_RESOLVED") {
-                showNotification(`Collision caught by trigger: Stale write rejected and audited in conflict_log.`);
+                showNotification(`Collision caught: Lenovo LOQ stale overwrite rejected; Nothing Phone edit preserved in conflict_log.`);
                 refreshDashboard();
                 document.querySelectorAll(".nav-item")[1].click();
             }
@@ -719,7 +719,7 @@
             const res = await fetch("/api/simulate-watch-conflict", { method: "POST" });
             const data = await res.json();
             if (data.status === "WATCH_PHONE_CONFLICT_RESOLVED") {
-                showNotification(`Sensor conflict reconciled: Phone ${data.phone_sensor.steps} steps vs. Watch ${data.watch_sensor.steps} steps. Wearable prioritized.`);
+                showNotification(`Sensor discrepancy reconciled: Nothing Phone ${data.phone_sensor.steps} steps vs. CMF Watch ${data.watch_sensor.steps} steps. Wearable prioritized.`);
                 refreshDashboard();
                 document.querySelectorAll(".nav-item")[1].click();
             }

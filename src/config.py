@@ -13,10 +13,10 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # Device Configuration
-PHONE_UUID = "phone-pixel-01"
-LAPTOP_UUID = "laptop-thinkpad-01"
+PHONE_UUID = "phone-nothing-01"
+LAPTOP_UUID = "laptop-loq-01"
 WATCH_UUID = "watch-cmf-01"
 
-PHONE_SQLITE_PATH = os.path.join(DATA_DIR, "phone.sqlite")
-LAPTOP_SQLITE_PATH = os.path.join(DATA_DIR, "laptop.sqlite")
+PHONE_SQLITE_PATH = os.path.join(DATA_DIR, "nothing_phone.sqlite")
+LAPTOP_SQLITE_PATH = os.path.join(DATA_DIR, "lenovo_loq.sqlite")
 
