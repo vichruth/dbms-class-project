@@ -37,7 +37,7 @@ Follow this exact flow when presenting to your faculty:
 #### 6. Data Population (DML)
 - **Artifact:** Open [`sql/seed_data.sql`](file:///home/vichruth/ML_PROJECTS/dbms%20class%20project/sql/seed_data.sql) or show the rows on the dashboard.
 - **What to say:**
-  - *"We populated realistic seed data across categories (Food, Travel, Tech, Education, Health), registered devices (Pixel 8, ThinkPad X1, CMF Watch Pro 2), baseline expenses, and daily step counts."*
+  - *"We populated realistic seed data across categories (Food, Travel, Tech, Education, Health), registered devices (Nothing Phone, Lenovo LOQ, CMF Watch Pro 2), baseline expenses, and daily step counts."*
 
 ---
 
@@ -46,17 +46,18 @@ Follow this exact flow when presenting to your faculty:
 #### 7. Front-End Design
 - **Artifact:** Open your browser at `http://127.0.0.1:5000`.
 - **What to show:**
-  - KPI summary cards (Total Expenditure, Smartwatch Activity, Offline Buffered Items, Conflicts).
-  - Clean tabs showing Canonical PostgreSQL Expenses, Category Totals, Wearable Daily Activity, and the Concurrency Conflict Log.
+  - Minimalist Apple-inspired dashboard interface.
+  - KPI summary cards (Canonical Expenses, Wearable Steps, Pending Edge Writes, Conflicts).
+  - Segmented controls showing Canonical Expenses, Wearable Steps, Device Telemetry, and the Conflict Audit Trail.
 
 #### 8. Business Logic Implementation
 - **Artifacts:** [`src/local_store.py`](file:///home/vichruth/ML_PROJECTS/dbms%20class%20project/src/local_store.py), [`src/classifier.py`](file:///home/vichruth/ML_PROJECTS/dbms%20class%20project/src/classifier.py), [`src/sync_engine.py`](file:///home/vichruth/ML_PROJECTS/dbms%20class%20project/src/sync_engine.py).
 - **Live Demo Action:**
-  1. In the toolbar, select **📱 Phone**, amount **₹350**, description *"Blue Tokai cold brew coffee"*.
-  2. Click **💾 Save to Offline SQLite**.
-  3. Point to the UI: *"Notice that the expense was instantly saved in the phone's local SQLite database and categorized as 'Food & Dining' by our on-device NLP model. The central PostgreSQL database is completely untouched because the device is offline."*
-  4. Click **🔄 Sync Phone Batch**.
-  5. Point to the UI: *"Now our sync engine wrapped the upload in a database transaction, verified idempotency, inserted the batch record, and committed the expense into PostgreSQL. The dashboard updated immediately."*
+  1. In the toolbar, select **Nothing Phone**, amount **₹240**, description *"Blue Tokai Cold Brew"*.
+  2. Click **Save to Offline Store**.
+  3. Point to the UI: *"Notice that the expense was instantly saved in the Nothing Phone's local SQLite store and classified as 'Food & Dining'. Central PostgreSQL is completely untouched because the device was offline."*
+  4. Click **Sync Nothing Phone**.
+  5. Point to the UI: *"Our sync engine wrapped the upload in a PostgreSQL transaction, verified idempotency, inserted the batch record, and committed the expense. The dashboard updated immediately."*
 
 #### 9. Database Connectivity
 - **Artifacts:** [`src/central_store.py`](file:///home/vichruth/ML_PROJECTS/dbms%20class%20project/src/central_store.py), [`src/api.py`](file:///home/vichruth/ML_PROJECTS/dbms%20class%20project/src/api.py).
@@ -65,13 +66,18 @@ Follow this exact flow when presenting to your faculty:
 
 ---
 
-### Step 4: The Grand Finale — The Conflict Resolution Demo (1 minute)
+### Step 4: The Grand Finale — Two Real-World Concurrency Demos (1 minute)
 
-This is the most impressive part of your project:
-1. Click the red button: **⚡ Simulate Lost Update & Trigger Resolution**.
-2. Switch to the **Conflict Audit Log** tab.
-3. Explain the mechanism:
-   > *"Here is the textbook lost-update problem in action: Phone and Laptop were both offline. Phone came online first and updated Expense #1 from version 1 to version 2. Split-seconds later, Laptop came online and tried to overwrite Expense #1 with stale version 2 data. Instead of silently losing the phone's data, our PostgreSQL BEFORE UPDATE trigger caught that the incoming version was stale, rejected the overwrite, and automatically inserted an audit record into `conflict_log`!"*
+1. **Demo A: CMF Watch Pro 2 vs. Nothing Phone Step Conflict**
+   - Click: **CMF Watch vs. Nothing Phone Steps**.
+   - Show the toast & switch to **Conflict Audit Log** tab.
+   - Explain:
+     > *"Both my Nothing Phone (in pocket) and CMF Watch Pro 2 (on wrist) recorded steps today offline. Phone recorded 8,450 steps; Watch recorded 11,280 steps. When syncing for the same date, rather than a silent overwrite, PostgreSQL intercepted the collision, applied `WEARABLE_HARDWARE_PRIORITY` to retain 11,280 steps, and archived the phone's reading in `conflict_log`!"*
+
+2. **Demo B: Nothing Phone vs. Lenovo LOQ Expense Collision**
+   - Click: **Nothing Phone vs. Lenovo LOQ Expenses**.
+   - Show the toast & explain:
+     > *"Nothing Phone and Lenovo LOQ both edited Expense #1 while offline. Nothing Phone synced first to version 2. When Lenovo LOQ synced with stale version 2 data, our PL/pgSQL trigger `trg_expense_conflict` caught `NEW.version <= OLD.version`, rejected the stale overwrite, and logged it into `conflict_log`."*
 
 ---
 
