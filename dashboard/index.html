@@ -344,10 +344,13 @@
 
                 <!-- Centerpiece Conflict Button -->
                 <div class="form-group">
-                    <label style="font-size: 0.85rem; font-weight: 600; color: #fca5a5;">3. The Showstopper Race Test</label>
+                    <label style="font-size: 0.85rem; font-weight: 600; color: #fca5a5;">3. Concurrency Conflict Tests</label>
                     <div class="btn-group">
-                        <button class="btn-danger" style="height: 100%;" onclick="runConflictDemo()">
-                            ⚡ Simulate Lost Update & Trigger Resolution
+                        <button class="btn-danger" style="padding: 8px 12px; font-size: 0.88rem;" onclick="runWatchConflictDemo()">
+                            ⌚ Simulate Watch vs. Phone Step Conflict
+                        </button>
+                        <button class="btn-danger" style="background:#b91c1c; padding: 8px 12px; font-size: 0.88rem;" onclick="runConflictDemo()">
+                            ⚡ Simulate Expense Collision (Lost Update)
                         </button>
                     </div>
                 </div>
@@ -636,6 +639,19 @@
             const data = await res.json();
             if (data.status === "CONFLICT_DETECTED_AND_RESOLVED") {
                 showToast(`🚨 <b>Trigger Handled Conflict!</b> Stale update from Laptop was rejected by PostgreSQL trigger <code>trg_expense_conflict</code>. Audited in <code>conflict_log</code> #${data.conflict_logged.conflict_id}!`);
+                refreshDashboard();
+                switchTab('tab-conflicts');
+            } else {
+                showToast(data.message || data.error, true);
+            }
+        }
+
+        async function runWatchConflictDemo() {
+            showToast("⌚ Simulating multi-sensor collision: CMF Watch Pro 2 vs. Phone Pedometer...");
+            const res = await fetch("/api/simulate-watch-conflict", { method: "POST" });
+            const data = await res.json();
+            if (data.status === "WATCH_PHONE_CONFLICT_RESOLVED") {
+                showToast(`🚨 <b>Sensor Discrepancy Caught!</b> Phone recorded ${data.phone_sensor.steps} steps vs. Watch ${data.watch_sensor.steps} steps. Wearable prioritized & conflict audited in <code>conflict_log</code> #${data.conflict_id}!`);
                 refreshDashboard();
                 switchTab('tab-conflicts');
             } else {

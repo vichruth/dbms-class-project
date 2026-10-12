@@ -124,9 +124,18 @@ def trigger_sync():
 
 @app.route("/api/simulate-conflict", methods=["POST"])
 def simulate_conflict():
-    """Executes the centerpiece concurrency conflict & trigger resolution demonstration."""
+    """Executes the expense concurrency conflict demonstration."""
     try:
         result = sync_engine.simulate_conflict_demo(expense_id=1)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"status": "FAILED", "error": str(e)}), 500
+
+@app.route("/api/simulate-watch-conflict", methods=["POST"])
+def simulate_watch_conflict():
+    """Executes the wearable watch vs phone sensor step collision demonstration."""
+    try:
+        result = sync_engine.simulate_watch_conflict_demo()
         return jsonify(result)
     except Exception as e:
         return jsonify({"status": "FAILED", "error": str(e)}), 500

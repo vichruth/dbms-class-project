@@ -136,3 +136,78 @@ class SyncEngine:
         finally:
             conn.close()
 
+    def simulate_watch_conflict_demo(self):
+        """
+        Demonstrates the real-world wearable vs phone sensor conflict:
+        Phone pedometer and CMF Watch Pro 2 both record steps for the same date.
+        Phone records 8,450 steps; Watch records 11,280 steps.
+        When syncing, this multi-sensor collision is detected, logged to conflict_log,
+        and resolved by prioritizing the dedicated wearable hardware.
+        """
+        conn = self.central.get_connection()
+        try:
+            today = "2026-10-12"
+            phone_row = self.central.get_device("phone-pixel-01")
+            watch_row = self.central.get_device("watch-cmf-01")
+
+            with conn.cursor() as cur:
+                # 1. Record Phone step entry for today
+                cur.execute("""
+                    INSERT INTO activity_entry (device_id, entry_date, step_count, version)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (device_id, entry_date)
+                    DO UPDATE SET step_count = 8450, version = 1
+                    RETURNING activity_id, step_count, version;
+                """, (phone_row["device_id"], today, 8450, 1))
+                phone_act_id, phone_steps, phone_ver = cur.fetchone()
+
+                # 2. Watch comes online via Health Connect, but detects that the user already has
+                # a phone reading of 8,450 steps for the exact same date!
+                # Record this multi-sensor collision in conflict_log
+                cur.execute("""
+                    INSERT INTO conflict_log (
+                        activity_id,
+                        device_id,
+                        conflict_type,
+                        existing_value,
+                        incoming_value,
+                        existing_version,
+                        incoming_version,
+                        resolution_strategy,
+                        resolved_at
+                    ) VALUES (
+                        %s, %s,
+                        'SENSOR_COLLISION_WATCH_VS_PHONE',
+                        'Phone (Pixel 8 Pedometer): 8,450 steps',
+                        'Watch (CMF Watch Pro 2): 11,280 steps',
+                        1, 1,
+                        'WEARABLE_HARDWARE_PRIORITY (11,280 steps accepted)',
+                        CURRENT_TIMESTAMP
+                    ) RETURNING conflict_id;
+                """, (phone_act_id, watch_row["device_id"]))
+                conflict_id = cur.fetchone()[0]
+
+                # 3. Update the canonical wearable entry
+                cur.execute("""
+                    INSERT INTO activity_entry (device_id, entry_date, step_count, version)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (device_id, entry_date)
+                    DO UPDATE SET step_count = 11280, version = activity_entry.version + 1;
+                """, (watch_row["device_id"], today, 11280, 2))
+
+                conn.commit()
+
+                return {
+                    "status": "WATCH_PHONE_CONFLICT_RESOLVED",
+                    "entry_date": today,
+                    "phone_sensor": {"device": "Google Pixel 8", "steps": 8450, "status": "ARCHIVED_IN_CONFLICT_LOG"},
+                    "watch_sensor": {"device": "CMF Watch Pro 2", "steps": 11280, "status": "COMMITTED_AS_CANONICAL"},
+                    "conflict_id": conflict_id,
+                    "strategy": "WEARABLE_HARDWARE_PRIORITY"
+                }
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            conn.close()
+
