@@ -1,0 +1,30 @@
+======================================================================
+  EXPERIMENT E1: OFFLINE-FIRST DURABILITY PROOF
+======================================================================
+
+[Step 1] Simulating disconnected environment (Zero Network Connectivity)
+  * Node 1: Nothing Phone -> Local Storage: /tmp/tmpqjn2sl1b/phone_isolated.sqlite
+  * Node 2: Lenovo LOQ    -> Local Storage: /tmp/tmpqjn2sl1b/laptop_isolated.sqlite
+
+[Step 2] Generating offline writes on Nothing Phone...
+  + Recorded local_id=1: Cafeteria Lunch Thali (Rs.180.0)
+  + Recorded local_id=2: Metro Station Ticket (Rs.45.0)
+  + Recorded local_id=3: Campus Stationery Supplies (Rs.320.0)
+  + Recorded local_id=4: Tender Coconut Water (Rs.110.0)
+  + Recorded local_id=5: Mobile Data Add-on Pack (Rs.650.0)
+
+[Step 3] Generating offline writes on Lenovo LOQ...
+  + Recorded local_id=1: JetBrains IDE Annual Student Renewal (Rs.1499.0)
+  + Recorded local_id=2: Ergonomic Vertical Mouse Pad (Rs.890.0)
+  + Recorded local_id=3: Mechanical Keyboard Keycaps (Rs.450.0)
+  + Recorded local_id=4: Cloud Compute GPU Credits (Rs.2100.0)
+  + Recorded local_id=5: USB-C Braided Cable (Rs.350.0)
+
+[Step 4] Durability Verification:
+  * Nothing Phone Unsynced Entries in SQLite: 5 / 5
+  * Lenovo LOQ Unsynced Entries in SQLite:    5 / 5
+
+[VERDICT: PASS]
+  All 10 edge transactions remain 100% durable in local SQLite.
+  Zero network dependency detected. Offline-first principle verified.
+

@@ -1,0 +1,28 @@
+======================================================================
+  EXPERIMENT E2: ACID ATOMICITY & MID-BATCH ROLLBACK PROOF
+======================================================================
+
+[Step 1] Baseline Central PostgreSQL State: 6 canonical expenses.
+
+[Step 2] Staging 4 offline expenses on Nothing Phone...
+  * Buffered items in local SQLite: 4
+
+[Step 3] Simulating Mid-Batch Network/Server Crash after item 2...
+    Item 1/4 merged in transaction buffer...
+    Item 2/4 merged in transaction buffer...
+    [!] FATAL INJECTION: Simulated socket drop / connection crash!
+    Rollback triggered: Simulated edge network timeout mid-batch.
+
+[Step 4] State Verification After Mid-Batch Crash:
+  * Central Expenses Expected: 6 | Actual: 6
+  * Local SQLite Unsynced Rows: 4 / 4
+  -> Atomicity Confirmed: Zero partial rows committed to PostgreSQL.
+
+[Step 5] Recovering network and executing clean transactional batch sync...
+  * Sync result: {'status': 'SUCCESS', 'batch_id': 4, 'client_batch_seq': 2, 'synced_count': 4}
+  * Central Expenses After Clean Recovery: 10 (+4)
+  * Local SQLite Unsynced Rows Remaining:  0
+
+[VERDICT: PASS]
+  ACID Atomicity fully validated: All-or-nothing transactional guarantee proven.
+

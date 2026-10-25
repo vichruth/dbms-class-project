@@ -159,3 +159,28 @@ class CentralStore:
                     "conflict_count": conflict_count
                 }
 
+    def get_peer_deltas(self, device_id: int, since_ts: str):
+        """
+        Retrieves all canonical records committed by OTHER devices since the given timestamp.
+        Used for bidirectional peer delta synchronization.
+        """
+        with self.get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT e.expense_id, e.amount, e.description, c.category_name,
+                           e.confidence, e.event_time, e.version, e.updated_at
+                    FROM expense e
+                    JOIN category c ON e.category_id = c.category_id
+                    WHERE e.device_id != %s AND e.updated_at > %s
+                    ORDER BY e.updated_at ASC;
+                """, (device_id, since_ts))
+                rows = cur.fetchall()
+                # Convert timestamps to isoformat strings for JSON serialization
+                for r in rows:
+                    if r.get("event_time"):
+                        r["event_time"] = r["event_time"].isoformat()
+                    if r.get("updated_at"):
+                        r["updated_at"] = r["updated_at"].isoformat()
+                return rows
+
+

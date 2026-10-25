@@ -122,6 +122,19 @@ def trigger_sync():
     except Exception as e:
         return jsonify({"status": "FAILED", "error": str(e)}), 500
 
+@app.route("/api/pull-deltas", methods=["POST"])
+def pull_deltas():
+    """Triggers bidirectional delta synchronization for a selected device."""
+    payload = request.json or {}
+    device = payload.get("device", "phone")
+    target_store = phone_store if device == "phone" else laptop_store
+
+    try:
+        result = sync_engine.pull_device_deltas(target_store)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"status": "FAILED", "error": str(e)}), 500
+
 @app.route("/api/simulate-conflict", methods=["POST"])
 def simulate_conflict():
     """Executes the expense concurrency conflict demonstration."""

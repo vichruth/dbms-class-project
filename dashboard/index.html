@@ -426,10 +426,16 @@
 
                 <!-- 2. Sync -->
                 <div class="control-block">
-                    <span class="control-label">2. Batch Synchronization</span>
+                    <span class="control-label">2. Bidirectional Replication</span>
                     <div class="btn-action-group">
-                        <button class="btn-subtle" onclick="syncDevice('phone')">Sync Nothing Phone</button>
-                        <button class="btn-subtle" onclick="syncDevice('laptop')">Sync Lenovo LOQ</button>
+                        <div style="display:flex; gap:6px;">
+                            <button class="btn-subtle" style="flex:1;" onclick="syncDevice('phone')">Push Phone</button>
+                            <button class="btn-subtle" style="flex:1;" onclick="pullDeltas('phone')">Pull Phone</button>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button class="btn-subtle" style="flex:1;" onclick="syncDevice('laptop')">Push LOQ</button>
+                            <button class="btn-subtle" style="flex:1;" onclick="pullDeltas('laptop')">Pull LOQ</button>
+                        </div>
                     </div>
                 </div>
 
@@ -699,6 +705,21 @@
             const data = await res.json();
             if (data.status === "SUCCESS") {
                 showNotification(`Batch committed to PostgreSQL · ${data.synced_count} records integrated.`);
+            } else {
+                showNotification(data.message || data.error);
+            }
+            refreshDashboard();
+        }
+
+        async function pullDeltas(device) {
+            const res = await fetch("/api/pull-deltas", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ device })
+            });
+            const data = await res.json();
+            if (data.status === "DELTAS_REPLICATED") {
+                showNotification(`Pulled ${data.peer_records_found} peer updates · ${data.locally_integrated} new records replicated into ${device.toUpperCase()} SQLite.`);
             } else {
                 showNotification(data.message || data.error);
             }

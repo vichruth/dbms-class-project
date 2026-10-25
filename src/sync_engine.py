@@ -4,6 +4,7 @@ Merges batched writes from edge SQLite stores into PostgreSQL with ACID guarante
 Handles idempotency and demonstrates trigger-based conflict resolution.
 """
 
+from datetime import datetime, timezone
 from src.central_store import CentralStore
 from src.local_store import LocalStore
 
@@ -59,6 +60,7 @@ class SyncEngine:
 
             # 4. Only upon successful commit, advance the local edge cursor
             local_store.mark_synced(local_ids_to_mark, client_batch_seq)
+            local_store.update_last_sync_time(datetime.now(timezone.utc).isoformat())
 
             return {
                 "status": "SUCCESS",
@@ -73,6 +75,32 @@ class SyncEngine:
             raise RuntimeError(f"Sync failed during batch execution: {str(e)}")
         finally:
             conn.close()
+
+    def pull_device_deltas(self, local_store: LocalStore) -> dict:
+        """
+        Pulls incremental delta records committed by peer devices since this node's
+        last sync timestamp, executing bidirectional multi-master replication.
+        """
+        device_uuid = local_store.device_uuid
+        device_row = self.central.get_device(device_uuid)
+        if not device_row:
+            raise ValueError(f"Device UUID {device_uuid} is not registered.")
+
+        device_id = device_row["device_id"]
+        since_ts = local_store.get_last_sync_time()
+
+        deltas = self.central.get_peer_deltas(device_id, since_ts)
+        applied_count = local_store.apply_peer_deltas(deltas)
+        local_store.update_last_sync_time(datetime.now(timezone.utc).isoformat())
+
+        return {
+            "status": "DELTAS_REPLICATED",
+            "device_uuid": device_uuid,
+            "since_timestamp": since_ts,
+            "peer_records_found": len(deltas),
+            "locally_integrated": applied_count
+        }
+
 
     def simulate_conflict_demo(self, expense_id: int = 1):
         """

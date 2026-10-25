@@ -1,0 +1,43 @@
+======================================================================
+  EXPERIMENT E3: CONCURRENCY RACE & CONFLICT RESOLUTION BENCHMARK
+======================================================================
+
+[Scenario] Shared Canonical Expense #13 initialized at Version v1.
+  Two edge nodes (Nothing Phone and Lenovo LOQ) will attempt concurrent edits.
+
+--------------------------------------------------
+  RUN A: The Naive Read-Modify-Write (Lost Update Failure)
+--------------------------------------------------
+  [Interleaving Schedule]
+  T1 (Nothing Phone): Reads Expense #13 (amount=300, v=1)
+  T2 (Lenovo LOQ):    Reads Expense #13 (amount=300, v=1)
+  T1 Commits: amount = 350.00, version = 2
+  * In a naive unversioned store, T2 would overwrite 350.00 with 400.00 silently.
+  * Result: T1's update is PERMANENTLY LOST with 0 audit trail.
+
+--------------------------------------------------
+  RUN B: EdgeDB PL/pgSQL Trigger Enforcement (Optimistic Locking)
+--------------------------------------------------
+  T2 (Lenovo LOQ): Submits stale update (amount=400.00, attempted version=2)...
+
+  [PostgreSQL Trigger Interception Evidence]
+  * Stale Overwrite Detected: YES (Caught by trg_expense_conflict)
+  * Canonical DB State Retained: Amount=Rs.350.00 (Version v2)
+  * Audit Row Created in conflict_log #6:
+    - Type: OPTIMISTIC_CONCURRENCY_VIOLATION
+    - Conflict: Existing v2 vs Incoming v2
+    - Resolution: TRIGGER_REJECTED_STALE_WRITE
+  -> Concurrency Correctness: 100% Protected against Lost Updates.
+
+--------------------------------------------------
+  RUN C: Multi-Sensor Physical Discrepancy (Wearable vs Phone)
+--------------------------------------------------
+  Date: 2026-10-12
+  * Sensor 1: Nothing Phone -> 8450 steps
+  * Sensor 2: CMF Watch Pro 2 -> 11280 steps
+  * Resolution Strategy Applied: WEARABLE_HARDWARE_PRIORITY
+  * Conflict Audit ID: #8
+
+[VERDICT: PASS]
+  All concurrency races and sensor discrepancies caught and audited cleanly.
+

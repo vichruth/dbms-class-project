@@ -48,6 +48,7 @@ class LocalStore:
             # Initialize metadata
             cursor.execute("INSERT OR IGNORE INTO device_meta (key, value) VALUES ('device_uuid', ?)", (self.device_uuid,))
             cursor.execute("INSERT OR IGNORE INTO device_meta (key, value) VALUES ('next_batch_seq', '1')")
+            cursor.execute("INSERT OR IGNORE INTO device_meta (key, value) VALUES ('last_sync_time', '1970-01-01T00:00:00+00:00')")
             conn.commit()
 
     def log_expense(self, amount: float, description: str, category: str = None, event_time: str = None) -> int:
@@ -109,4 +110,45 @@ class LocalStore:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM local_expense ORDER BY local_id DESC")
             return [dict(row) for row in cursor.fetchall()]
+
+    def get_last_sync_time(self) -> str:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM device_meta WHERE key = 'last_sync_time'")
+            row = cursor.fetchone()
+            return row["value"] if row else "1970-01-01T00:00:00+00:00"
+
+    def update_last_sync_time(self, ts: str):
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE device_meta SET value = ? WHERE key = 'last_sync_time'", (ts,))
+            conn.commit()
+
+    def apply_peer_deltas(self, delta_records: list) -> int:
+        """
+        Applies incremental delta updates committed by peer devices into local SQLite.
+        Marks records as already synced (synced=1).
+        """
+        if not delta_records:
+            return 0
+        applied = 0
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            for rec in delta_records:
+                # Avoid re-inserting if identical description and event_time already exist
+                cursor.execute("""
+                    SELECT local_id FROM local_expense 
+                    WHERE description = ? AND event_time = ?
+                """, (rec["description"], rec["event_time"]))
+                if not cursor.fetchone():
+                    cursor.execute("""
+                        INSERT INTO local_expense 
+                        (amount, description, category, confidence, event_time, synced, sent_in_batch, client_version)
+                        VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+                    """, (float(rec["amount"]), rec["description"], rec["category_name"], float(rec.get("confidence", 1.0)),
+                          rec["event_time"], rec.get("batch_id", 0), rec.get("version", 1)))
+                    applied += 1
+            conn.commit()
+        return applied
+
 
