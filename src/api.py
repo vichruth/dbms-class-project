@@ -4,6 +4,7 @@ Bridges the web dashboard to PostgreSQL and edge SQLite instances.
 """
 
 import os
+import socket
 from flask import Flask, jsonify, request, send_from_directory
 from src.config import BASE_DIR, PHONE_UUID, LAPTOP_UUID, PHONE_SQLITE_PATH, LAPTOP_SQLITE_PATH
 from src.central_store import CentralStore
@@ -17,9 +18,33 @@ sync_engine = SyncEngine()
 phone_store = LocalStore(PHONE_SQLITE_PATH, PHONE_UUID)
 laptop_store = LocalStore(LAPTOP_SQLITE_PATH, LAPTOP_UUID)
 
+def get_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('10.255.255.255', 1))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = '127.0.0.1'
+    finally:
+        s.close()
+    return ip
+
 @app.route("/")
 def index():
     return send_from_directory(app.static_folder, "index.html")
+
+@app.route("/mobile")
+def mobile_view():
+    return send_from_directory(app.static_folder, "mobile.html")
+
+@app.route("/api/server-info", methods=["GET"])
+def server_info():
+    ip = get_local_ip()
+    return jsonify({
+        "local_ip": ip,
+        "port": 5000,
+        "mobile_url": f"http://{ip}:5000/mobile"
+    })
 
 @app.route("/api/kpis", methods=["GET"])
 def get_kpis():

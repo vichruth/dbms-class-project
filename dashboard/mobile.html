@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nothing Phone — Edge Client</title>
+    <style>
+        :root {
+            --bg: #000000;
+            --surface: #111113;
+            --surface-elevated: #1a1a1d;
+            --border: rgba(255, 255, 255, 0.1);
+            --text: #f5f5f7;
+            --muted: #86868b;
+            --nothing-red: #d71921;
+            --accent-green: #30d158;
+            --accent-blue: #0a84ff;
+            --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            padding: 24px 18px 40px;
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .glyph-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--nothing-red);
+            box-shadow: 0 0 10px var(--nothing-red);
+        }
+
+        .status-badge {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--accent-green);
+            background: rgba(48, 209, 88, 0.12);
+            border: 1px solid rgba(48, 209, 88, 0.25);
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 18px;
+            margin-bottom: 16px;
+        }
+
+        .card-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted);
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .amount-row {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            margin-bottom: 14px;
+        }
+
+        .currency-symbol {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--muted);
+        }
+
+        .amount-input {
+            background: transparent;
+            border: none;
+            color: var(--text);
+            font-size: 34px;
+            font-weight: 700;
+            width: 100%;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .text-input {
+            width: 100%;
+            background: var(--surface-elevated);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            color: var(--text);
+            font-size: 14px;
+            outline: none;
+            font-family: inherit;
+            margin-bottom: 14px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-white {
+            background: #ffffff;
+            color: #000000;
+        }
+        .btn-white:active { background: #dcdcdc; }
+
+        .btn-subtle {
+            background: var(--surface-elevated);
+            color: var(--text);
+            border: 1px solid var(--border);
+            margin-top: 8px;
+        }
+        .btn-subtle:active { background: #26262a; }
+
+        .btn-red {
+            background: rgba(215, 25, 33, 0.15);
+            color: #ff6b6b;
+            border: 1px solid rgba(215, 25, 33, 0.35);
+            margin-top: 8px;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .stat-box {
+            background: var(--surface-elevated);
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+        .stat-box-num {
+            font-size: 20px;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+
+        .local-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 13px;
+        }
+        .local-item:last-child { border-bottom: none; }
+
+        .tag-synced {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(48, 209, 88, 0.15);
+            color: var(--accent-green);
+        }
+        .tag-pending {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(255, 159, 10, 0.15);
+            color: #ff9f0a;
+        }
+
+        /* Toast */
+        #mobile-toast {
+            position: fixed;
+            bottom: 24px;
+            left: 18px;
+            right: 18px;
+            background: rgba(28, 28, 30, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 12px 18px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 500;
+            display: none;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <div class="header-title"><span class="glyph-dot"></span> Nothing Phone</div>
+            <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">Edge Node · Vichruth M</div>
+        </div>
+        <span class="status-badge" id="net-status">Server Online</span>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="stat-grid">
+        <div class="stat-box">
+            <div style="font-size: 11px; color: var(--muted);">PENDING SYNC</div>
+            <div class="stat-box-num" style="color: #ff9f0a;" id="stat-pending">0</div>
+        </div>
+        <div class="stat-box">
+            <div style="font-size: 11px; color: var(--muted);">EDGE STORAGE</div>
+            <div class="stat-box-num" style="font-size: 14px; color: var(--text);">SQLite Active</div>
+        </div>
+    </div>
+
+    <!-- Card 1: Record Offline -->
+    <div class="card">
+        <span class="card-label">Log Local Transaction (Offline)</span>
+        <div class="amount-row">
+            <span class="currency-symbol">₹</span>
+            <input type="number" id="inp-amount" class="amount-input" placeholder="0" value="180">
+        </div>
+        <input type="text" id="inp-desc" class="text-input" placeholder="Description (e.g. Cafeteria cold brew)" value="Cafeteria Cold Brew">
+        <button class="btn btn-white" onclick="logLocalExpense()">
+            Save to Nothing Phone
+        </button>
+    </div>
+
+    <!-- Card 2: Replicate to Laptop Server -->
+    <div class="card">
+        <span class="card-label">Sync with Lenovo LOQ Server</span>
+        <button class="btn btn-subtle" onclick="pushToLaptop()">
+            Push Local Batch to Server
+        </button>
+        <button class="btn btn-subtle" onclick="pullPeerDeltas()">
+            Pull Deltas from Laptop
+        </button>
+        <button class="btn btn-red" onclick="triggerWatchDemo()">
+            Sync CMF Watch Step Discrepancy
+        </button>
+    </div>
+
+    <!-- Card 3: Local SQLite Ledger -->
+    <div class="card">
+        <span class="card-label">Local Edge SQLite Ledger</span>
+        <div id="local-items-list">
+            <div style="color: var(--muted); font-size: 12px; text-align: center; padding: 12px;">Loading local records...</div>
+        </div>
+    </div>
+
+    <div id="mobile-toast"></div>
+
+    <script>
+        function toast(msg) {
+            const t = document.getElementById("mobile-toast");
+            t.innerText = msg;
+            t.style.display = "block";
+            clearTimeout(t._to);
+            t._to = setTimeout(() => { t.style.display = "none"; }, 4000);
+        }
+
+        async function refreshMobile() {
+            try {
+                const res = await fetch("/api/local-status");
+                const data = await res.json();
+                const phone = data.phone;
+
+                document.getElementById("stat-pending").innerText = phone.pending_count;
+                document.getElementById("net-status").innerText = "Server Online";
+                document.getElementById("net-status").style.color = "var(--accent-green)";
+
+                const list = document.getElementById("local-items-list");
+                if (!phone.all_items || phone.all_items.length === 0) {
+                    list.innerHTML = `<div style="color: var(--muted); font-size: 12px; text-align: center; padding: 12px;">No local items recorded yet.</div>`;
+                } else {
+                    list.innerHTML = phone.all_items.slice(0, 5).map(item => `
+                        <div class="local-item">
+                            <div>
+                                <div style="font-weight: 500;">${item.description}</div>
+                                <div style="font-size: 11px; color: var(--muted);">${item.category}</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-weight: 600;">₹${parseFloat(item.amount).toFixed(2)}</div>
+                                <div>${item.synced === 1 ? '<span class="tag-synced">Synced</span>' : '<span class="tag-pending">Buffered</span>'}</div>
+                            </div>
+                        </div>
+                    `).join("");
+                }
+            } catch (err) {
+                document.getElementById("net-status").innerText = "Offline (Airplane Mode)";
+                document.getElementById("net-status").style.color = "var(--nothing-red)";
+            }
+        }
+
+        async function logLocalExpense() {
+            const amount = document.getElementById("inp-amount").value;
+            const description = document.getElementById("inp-desc").value;
+            if (!amount || !description) return;
+
+            try {
+                const res = await fetch("/api/log-expense", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ device: "phone", amount, description })
+                });
+                const data = await res.json();
+                toast(`Saved locally in Phone SQLite: ₹${amount}`);
+                refreshMobile();
+            } catch (e) {
+                toast("Saved to local offline store.");
+            }
+        }
+
+        async function pushToLaptop() {
+            toast("Transmitting batch to Lenovo LOQ...");
+            try {
+                const res = await fetch("/api/sync", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ device: "phone" })
+                });
+                const data = await res.json();
+                if (data.status === "SUCCESS") {
+                    toast(`Batch committed to PostgreSQL · ${data.synced_count} records merged.`);
+                } else {
+                    toast(data.message || "All items already synchronized.");
+                }
+                refreshMobile();
+            } catch (e) {
+                toast("Connection error: Ensure laptop server is reachable.");
+            }
+        }
+
+        async function pullPeerDeltas() {
+            toast("Replicating peer updates from Lenovo LOQ...");
+            try {
+                const res = await fetch("/api/pull-deltas", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ device: "phone" })
+                });
+                const data = await res.json();
+                toast(`Replicated ${data.peer_records_found} peer records into phone SQLite.`);
+                refreshMobile();
+            } catch (e) {
+                toast("Sync failed: Check network connection.");
+            }
+        }
+
+        async function triggerWatchDemo() {
+            toast("Simulating CMF Watch 11,280 steps vs Phone 8,450 steps...");
+            try {
+                const res = await fetch("/api/simulate-watch-conflict", { method: "POST" });
+                const data = await res.json();
+                toast("Trigger caught sensor collision! Wearable prioritized.");
+                refreshMobile();
+            } catch (e) {
+                toast("Error contacting central server.");
+            }
+        }
+
+        refreshMobile();
+        setInterval(refreshMobile, 4000);
+    </script>
+</body>
+</html>
+

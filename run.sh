@@ -20,9 +20,13 @@ echo "[2/3] Checking central PostgreSQL database (edgedb)..."
 python3 -c "from src.central_store import CentralStore; c = CentralStore(); print('PostgreSQL Connection: OK (Active)')"
 
 # Start the Web Application
-echo "[3/3] Starting Web Dashboard & REST API on http://127.0.0.1:5000 ..."
+echo "[3/3] Starting Web Dashboard & REST API on port 5000..."
 echo "----------------------------------------------------------"
-echo "Open your browser at: http://127.0.0.1:5000"
+IP=$(python3 -c "import socket; s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM); (s.connect(('10.255.255.255', 1)), print(s.getsockname()[0]), s.close())" 2>/dev/null || echo "127.0.0.1")
+echo "  💻 Lenovo LOQ Dashboard:  http://127.0.0.1:5000"
+echo "  📱 Nothing Phone Mobile:  http://${IP}:5000/mobile"
+echo "----------------------------------------------------------"
+echo "Tip: Ensure phone & laptop are on the same Wi-Fi or phone hotspot."
 echo "Press Ctrl+C to stop the server."
 echo "----------------------------------------------------------"
 python3 -m src.api
